@@ -5,9 +5,9 @@ import { sql } from '@vercel/postgres';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
-import { signIn } from '@/auth';
-import { AuthError } from 'next-auth';
 import bcrypt from 'bcrypt';
+import { signIn } from 'next-auth/react';  // Adjusted NextAuth signIn import
+import { AuthError } from 'next-auth';  // Use this for handling specific auth errors
 
 // Define the form schema
 const LoginSchema = z.object({
@@ -21,7 +21,7 @@ const LoginSchema = z.object({
 
 export async function authenticate(
   prevState: string | undefined,
-  formData: FormData,
+  formData: FormData
 ) {
   try {
     // Validate form fields using Zod
@@ -59,7 +59,7 @@ export async function authenticate(
       return 'Invalid email or password';
     }
 
-    // Create session
+    // Create session entry in the database
     const session = await sql`
       INSERT INTO battle_sessions (
         host_user_id,
@@ -74,17 +74,20 @@ export async function authenticate(
       RETURNING id, session_code
     `;
 
-    // Set authentication cookie or token (implementation depends on your auth strategy)
-    // For example, using NextAuth.js:
-    await signIn('credentials', {
+    // Use NextAuth's signIn for session handling
+    const result = await signIn('credentials', {
+      redirect: false,
       email,
       password,
-      redirectTo: '/dashboard',
     });
 
+    if (result?.error) {
+      return 'Authentication failed';
+    }
+
+    // Revalidate and redirect to the dashboard
     revalidatePath('/dashboard');
     redirect('/dashboard');
-
   } catch (error) {
     // Check if error is from NextAuth
     if (error instanceof AuthError) {
@@ -95,7 +98,7 @@ export async function authenticate(
           return 'Authentication error';
       }
     }
-    
+
     // Handle other errors
     console.error('Authentication error:', error);
     return 'Something went wrong! Please try again.';
