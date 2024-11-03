@@ -1,0 +1,5 @@
+selenium
+Pillow
+requests
+webdriver_manager
+urllib3
